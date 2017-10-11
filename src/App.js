@@ -2,29 +2,40 @@ import React, { Component } from 'react';
 import { Router, Route, Switch, Link } from 'react-router-dom';
 import { createBrowserHistory } from 'history';
 import angular from 'angular';
+import MapRouterToAngular from './AngularComponent';
 
-angular.module('ngApp', []).controller('ngController', [
-  '$scope',
-  function($scope) {
-    $scope.value = 'World';
-  },
-]);
-
-const angularTemplate = `<div ng-controller="ngController">Hello {{ value }}! If you see <code ng-non-bindable>{{ value }}</code> here, try a hard reload.</div>`;
-
-const angularComponent = () => <div dangerouslySetInnerHTML={{ __html: angularTemplate }} />;
-const homeComponent = () =>
-  <div>
-    <h1>Rendering Angular inside React</h1>
-    <p>
-      I'm trying to render legacy Angular controllers inside a React app. The issue is that when we browse to it through react-router, the
-      template won't be evaluated. However, after doing a hard reload it works as expected. Can I hook into Angular template compilation, so
-      I can trigger it on external events? (e.g.: react-router)
-    </p>
-    <p>
-      Check out the code on <a href="/_src">/_src</a>, everything interesting is in <code>src/App.js></code>
-    </p>
-  </div>;
+const ngApp = angular
+  .module('ngApp', [])
+  // example controller
+  .controller('ngController', [
+    '$scope',
+    '$timeout',
+    function($scope, $timeout) {
+      $scope.value = 1;
+      $scope.updateValue = () => {
+        $timeout(() => {
+          $scope.value = $scope.value + 1;
+          $scope.$apply();
+        });
+      };
+    },
+  ])
+  // disable angular's url tampering
+  .config([
+    '$provide',
+    function($provide) {
+      $provide.decorator('$browser', [
+        '$delegate',
+        function($delegate) {
+          $delegate.onUrlChange = function() {};
+          $delegate.url = function() {
+            return '';
+          };
+          return $delegate;
+        },
+      ]);
+    },
+  ]);
 
 class App extends Component {
   render() {
@@ -32,19 +43,24 @@ class App extends Component {
       <div className="app" ref={c => (this.container = c)}>
         <div>
           <Router history={createBrowserHistory()}>
-            <div>
+            <div className="react">
               <ul>
                 <li>
                   <Link to="/">Home</Link>
                 </li>
                 <li>
-                  <Link to="/angular">Page with Angular controller</Link>
+                  <Link to="/page2">Page with Angular controller</Link>
                 </li>
               </ul>
-              <Switch>
-                <Route path="/angular" component={angularComponent} />
-                <Route component={homeComponent} />
-              </Switch>
+              <p>Content rendered by React is red, Angular is blue</p>
+              <p>
+                Current page:{' '}
+                <Switch>
+                  <Route path="/page2" component={() => <span>Page2</span>} />
+                  <Route component={() => <span>Home</span>} />
+                </Switch>
+              </p>
+              <MapRouterToAngular ngApp={ngApp} />
             </div>
           </Router>
         </div>
